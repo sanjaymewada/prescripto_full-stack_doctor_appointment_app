@@ -15,6 +15,8 @@ const razorpayInstance = new razorpay({
     key_secret: process.env.RAZORPAY_KEY_SECRET,
 })
 
+
+debugger;
 // API to register user
 const registerUser = async (req, res) => {
 
@@ -308,7 +310,7 @@ const paymentStripe = async (req, res) => {
             },
             quantity: 1
         }]
-
+      console.log("check");
         const session = await stripeInstance.checkout.sessions.create({
             success_url: `${origin}/verify?success=true&appointmentId=${appointmentData._id}`,
             cancel_url: `${origin}/verify?success=false&appointmentId=${appointmentData._id}`,

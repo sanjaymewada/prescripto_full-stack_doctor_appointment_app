@@ -1,0 +1,142 @@
+🔎 Dockerfile दोबारा देखिए:
+FROM node:18-alpine
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm ci --no-audit --no-fund
+
+COPY . .
+
+ENV NODE_ENV=production
+RUN npm run build
+
+RUN npm install -g serve
+
+EXPOSE 80
+
+CMD ["serve", "-s", "dist", "-l", "80"]
+
+📝 Step-by-Step Explanation
+1. FROM node:18-alpine
+
+FROM → container के लिए base image चुनते हैं।
+
+यहाँ हमने Node.js v18 का alpine variant लिया →
+
+Alpine Linux बहुत lightweight (छोटा size) है → image छोटा रहता है।
+
+क्योंकि Vite project को Node.js की ज़रूरत है, इसीलिए node image ली गई।
+
+2. WORKDIR /app
+
+container के अंदर /app नाम का folder हमारा working directory होगा।
+
+इसके बाद की सारी commands यहीं के relative paths में चलेंगी।
+
+ऐसा करने से code और dependencies एक जगह साफ़-सुथरा रहता है।
+
+3. COPY package*.json ./
+
+ये command सिर्फ package.json और package-lock.json files को container में copy करती है।
+
+हम code अभी copy नहीं करते क्योंकि पहले dependencies install कर लेंगे → caching layer optimize होती है।
+
+4. RUN npm ci --no-audit --no-fund
+
+container में dependencies install करता है।
+
+npm ci → fast & clean install (production के लिए best)।
+
+--no-audit --no-fund → audit/funding messages disable → build तेज़।
+
+5. COPY . .
+
+अब पूरा source code (src/, vite.config.js, index.html, आदि) container में copy कर लेते हैं।
+
+ये step build के लिए ज़रूरी है क्योंकि code चाहिए होगा।
+
+6. ENV NODE_ENV=production
+
+Environment variable set कर दिया → production mode।
+
+कई JS tools (जैसे Vite, React) production mode में optimized build बनाते हैं।
+
+7. RUN npm run build
+
+यहाँ हम package.json का build script चला रहे हैं → Vite project के लिए ये optimized dist/ folder generate करेगा।
+
+React/Tailwind का production-ready HTML, JS, CSS यहीं बनता है।
+
+8. RUN npm install -g serve
+
+serve नाम का छोटा static file server globally install किया।
+
+इसका काम है dist/ folder को host करना (React/Vite app के लिए production server)।
+
+इससे हमें nginx की ज़रूरत नहीं पड़ी।
+
+9. EXPOSE 80
+
+container बताएगा कि वो port 80 पर listen करेगा।
+
+ये सिर्फ informational है → actual port mapping हम docker run -p 80:80 से करते हैं।
+
+10. CMD ["serve", "-s", "dist", "-l", "80"]
+
+container शुरू होते ही ये default command run होगी:
+
+serve -s dist -l 80
+
+-s → single-page-app mode (deep link routes के लिए)
+
+dist → यही build output folder serve करेगा
+
+-l 80 → port 80 पर listen करेगा
+
+⚙️ .dockerignore
+node_modules
+dist
+.vscode
+.git
+npm-debug.log*
+
+
+यह file बताती है कि कौन-सी files Docker image में copy न हों।
+
+node_modules copy करने की ज़रूरत नहीं क्योंकि हम container में खुद install करते हैं।
+
+dist भी copy नहीं करते क्योंकि हम इसे container के अंदर build करेंगे।
+
+🚀 Build & Run कैसे करें
+docker build -t prescripto-admin .
+docker run -d -p 80:80 prescripto-admin
+
+
+docker build → ऊपर के steps से image बनती है।
+
+docker run → container launch करता है और host के port 80 से bind करता है।
+
+ब्राउज़र में http://localhost खोलेंगे तो React app दिखेगा।
+
+🟢 Recap (Q → A)
+
+Q: Single stage क्यों?
+👉 क्योंकि हम अलग build container नहीं रखना चाहते, सब कुछ एक ही image में कर रहे हैं।
+
+Q: क्या लिखा और क्यों लिखा?
+👉 ऊपर हर step में बताया:
+
+base image = node
+
+deps install
+
+code copy
+
+production build
+
+serve से run
+
+port expose + command set
+
+क्या आप चाहेंगे कि मैं diagram के ज़रिए भी समझाऊँ कि Docker image के layers कैसे बनते हैं (जैसे COPY/RUN layers)?
